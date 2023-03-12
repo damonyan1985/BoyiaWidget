@@ -1,0 +1,46 @@
+.body {
+    background-color:white;
+}
+
+#root {
+    background-color: #00000022;
+    width: 100%;
+    height: 100vh;
+    position: absolute;
+}
+
+.page-main {
+    width: 100%;
+    height: 100vh;
+}
+
+.index-audio-player {
+    position: absolute;
+    top: 20px;
+    left: 100px;
+}
+
+.setting-panel {
+    display: flex;
+    flex-direction: row-reverse;
+    height: 7rem;
+    align-items: center;
+    background-color: rgba(138, 43, 226, 0.2);
+    padding-right: 15rem;
+}
+  
+.setting-item {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: row;
+    width: 100px;
+    height: 50px;
+    margin-left: 50px;
+}
+
+.setting-title {
+    margin-left: 20px;
+    margin-right: 10px;
+    width: 200px;
+    white-space:nowrap;
+}
