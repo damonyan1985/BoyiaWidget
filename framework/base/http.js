@@ -15,6 +15,31 @@ export class BoyiaHttp {
         [BoyiaHttp.HttpMethod.post]: BoyiaHttp._httpPostData
     }
 
+    // get, post，不含上传
+    static fetchPromise({url, method = BoyiaHttp.HttpMethod.get, headers = {}, data, responseType = 'json'}) {
+      return new Promise(function(resolve, reject) {
+        BoyiaHttp.fetch({
+          url,
+          method,
+          headers,
+          data,
+          responseType,
+          success: (data) => {
+            resolve({
+              status: 'ok',
+              data: data
+            });
+          },
+          fail: (status) => {
+            reject({
+              status: 'fail',
+              reason: status
+            });
+          }
+        })
+      });
+    }
+
     // 封装fetch函数进行http请求，用fetch用习惯了
     static fetch({url, method = BoyiaHttp.HttpMethod.get, headers = {}, data, responseType = 'json', success, fail, uploadProgress, onLoad}) {
         data = data || {}

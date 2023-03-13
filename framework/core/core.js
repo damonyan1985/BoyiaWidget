@@ -153,54 +153,78 @@ export class Container extends BoyiaWidget {
         children = [],
         onready = undefined,
     }) { 
-        super({styleName, id, onready}) 
-        this.children = children
+        super({styleName, id, onready});
+        this.children = children;
     }
 
     setWidth(width) {
         if (this.elem) {
-            this.elem.style.width = width
+            this.elem.style.width = width;
         }
     }
 
     setStyle(style) {
         if (this.elem) {
-            this.elem.className = style
+            this.elem.className = style;
         }
     }
 
     setCursor(cursor) {
         if (this.elem) {
-            this.elem.style.cursor = cursor
+            this.elem.style.cursor = cursor;
         }
     }
 
     setTop(top) {
         if (this.elem) {
-            this.elem.style.top = top
+            this.elem.style.top = top;
         }
     }
 
     setLeft(left) {
         if (this.elem) {
-            this.elem.style.left = left
+            this.elem.style.left = left;
         }
     }
 
     offsetLeft() {
         if (this.elem) {
-            return this.elem.offsetLeft
+            return this.elem.offsetLeft;
         }
 
-        return 0
+        return 0;
     }
 
     offsetTop() {
         if (this.elem) {
-            return this.elem.offsetTop
+            return this.elem.offsetTop;
         }
 
-        return 0
+        return 0;
+    }
+
+    offsetWidth() {
+        if (this.elem) {
+            return this.elem.offsetWidth;
+        }
+
+        return 0;
+    }
+
+    offsetHeight() {
+        if (this.elem) {
+            return this.elem.offsetHeight;
+        }
+
+        return 0;
+    }
+
+    getBoundingClientRect() {
+        if (this.elem) {
+            return this.elem.getBoundingClientRect();
+        }
+
+        return null;
     }
 
     isContainer() { return true }
@@ -230,9 +254,16 @@ export class Container extends BoyiaWidget {
 }
 
 export class ImageWidget extends BoyiaWidget {
-    constructor({styleName, url, id= ''}) { 
-        super({styleName, id}) 
+    constructor({styleName, url, id= '', onready = undefined}) { 
+        super({styleName, id, onready}) 
         this.url = url;
+    }
+
+    setImageUrl(url) {
+        this.url = url;
+        if (this.elem) {
+            this.elem.src = this.url
+        }
     }
 
     _render() {
@@ -368,41 +399,53 @@ export class Text extends BoyiaWidget {
 
 export class Audio extends BoyiaWidget {
     constructor({oncanplay, onplay, onended, onprogress, ontimeupdate, onready}) { 
-        super({styleName: '', id: '', onready})
-        this.oncanplay = oncanplay
-        this.onplay = onplay
-        this.onended = onended
-        this.onprogress = onprogress
-        this.ontimeupdate = ontimeupdate
+        super({styleName: '', id: '', onready});
+        this.oncanplay = oncanplay;
+        this.onplay = onplay;
+        this.onended = onended;
+        this.onprogress = onprogress;
+        this.ontimeupdate = ontimeupdate;
+    }
+
+    seekTo(progress) {
+        if (this.elem) {
+            this.elem.currentTime = progress * this.elem.duration;
+        }
     }
 
     currentTime() {
-        return this.elem && this.elem.currentTime
+        return this.elem && this.elem.currentTime;
     }
 
     duration() {
-        return this.elem && this.elem.duration
+        return this.elem && this.elem.duration;
     }
 
     hasUrl() {
-        return this.elem && this.elem.src
+        return this.elem && this.elem.src;
     }
 
     setPlayUrl(url) {
         if (this.elem) {
-            this.elem.src = url
+            this.elem.src = url;
         }
     }
 
     play() {
         if (this.elem) {
-            this.elem.play()
+            this.elem.play();
         }
     }
 
     pause() {
         if (this.elem) {
-            this.elem.pause()
+            this.elem.pause();
+        }
+    }
+
+    setVolume(volume) {
+        if (this.elem) {
+            this.elem.volume = volume;
         }
     }
 

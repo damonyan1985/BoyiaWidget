@@ -11,13 +11,13 @@ var IndexRouter = {
     login: {
         path: '/boyiaweb/index/login',
         title: 'login',
-        page: () => { return new Container({styleName: ''})},
+        page: () => { return new Container({styleName: ''}); },
     },
     home: {
         path: '/boyiaweb/index/home',
         title: 'home',
         page: () => { 
-            return new IndexHomeWidget({styleName: ''}) 
+            return new IndexHomeWidget({styleName: ''}); 
         }
     }
 };
@@ -38,6 +38,6 @@ class IndexHomeWidget extends BoyiaStateWidget {
 }
 
 $(document).ready(function() {
-    BoyiaNavigator.init()
-    BoyiaNavigator.push(IndexRouter.home)
+    BoyiaNavigator.init();
+    BoyiaNavigator.push(IndexRouter.home);
 });
