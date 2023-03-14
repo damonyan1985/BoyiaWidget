@@ -7,16 +7,21 @@ import {
     FeatureGatings
 } from '../base/util.js'
 
-const CONTAINER_TAG = 'div'
-const INPUT_TAG = 'input'
-const IMAGE_TAG = 'img'
-const AUDIO_TAG = 'audio'
-const LABEL_TAG = 'label'
+const HtmlTags = {
+    kContainerTag: 'div',
+    kInputTag: 'input',
+    kImageTag: 'img',
+    kAudioTag: 'audio',
+    kVideoTag: 'video',
+    kLabelTag: 'label'
+};
 
-const TEXT_FIELD_TYPE = 'text'
-const BUTTON_TYPE = 'button'
-const FILE_PICK_TYPE = 'file'
-const CHECK_BOX_TYPE = 'checkbox'
+const InputType = {
+    kTextFieldType: 'text',
+    kButtonType: 'button',
+    kFilePickType: 'file',
+    kCheckboxType: 'checkbox'
+};
  
 // 虚拟DOM结构中的元素
 export class BoyiaWidget {
@@ -123,25 +128,25 @@ export class BoyiaStateWidget extends BoyiaWidget {
                 parent.removeChild(this.node)
             }
             
-            BoyiaVDOMDriver.rebuild(this)
-            this.render()
+            BoyiaVDOMDriver.rebuild(this);
+            this.render();
             if (this.node && parent) {
-                parent.appendChild(this.node)
+                parent.appendChild(this.node);
             }
         }
     }
 
     _render() {
         if (!this.child) {
-            this.initWidget()
-            this.child = this.build()
+            this.initWidget();
+            this.child = this.build();
         }
 
         if (this.child) {
-            this.node = this.child.render()
+            this.node = this.child.render();
         }
 
-        return this.node
+        return this.node;
     }
 }
  
@@ -230,22 +235,22 @@ export class Container extends BoyiaWidget {
     isContainer() { return true }
 
     _render() {
-        let elem = document.createElement(CONTAINER_TAG)
+        let elem = document.createElement(HtmlTags.kContainerTag);
         if (this.id) {
-            elem.setAttribute('id', this.id)
+            elem.setAttribute('id', this.id);
         }
         if (this.styleName) {
-            elem.className = this.styleName
+            elem.className = this.styleName;
         }
 
         // 添加子元素
         this.children.forEach((child) => {
             try {
                 // 子元素渲染
-                elem.appendChild(child.render())
+                elem.appendChild(child.render());
             } catch(e) {
                 console.error('appendChild err:', e)
-                console.log('child class: ' + child.constructor.name)
+                console.log('child class: ' + child.constructor.name);
             }
         })
 
@@ -255,22 +260,22 @@ export class Container extends BoyiaWidget {
 
 export class ImageWidget extends BoyiaWidget {
     constructor({styleName, url, id= '', onready = undefined}) { 
-        super({styleName, id, onready}) 
+        super({styleName, id, onready});
         this.url = url;
     }
 
     setImageUrl(url) {
         this.url = url;
         if (this.elem) {
-            this.elem.src = this.url
+            this.elem.src = this.url;
         }
     }
 
     _render() {
-        let elem = document.createElement(IMAGE_TAG);
-        elem.src = this.url
+        let elem = document.createElement(HtmlTags.kImageTag);
+        elem.src = this.url;
         if (this.styleName) {
-            elem.className = this.styleName
+            elem.className = this.styleName;
         }
         return elem;
     }
@@ -287,7 +292,7 @@ export class InputWidget extends BoyiaWidget {
     type() { return '' }
 
     _render() {
-        let elem = document.createElement(INPUT_TAG)
+        let elem = document.createElement(HtmlTags.kInputTag)
         elem.setAttribute('type', this.type())
         elem.setAttribute('name', this.name)
         elem.setAttribute('value', this.value)
@@ -309,7 +314,7 @@ export class TextField extends InputWidget {
         super({styleName, id, name, value}) 
     }
 
-    type() { return TEXT_FIELD_TYPE }
+    type() { return InputType.kTextFieldType; }
 }
  
 export class Button extends InputWidget {
@@ -318,7 +323,7 @@ export class Button extends InputWidget {
         this.onTap = onTap;
     }
 
-    type() { return BUTTON_TYPE }
+    type() { return InputType.kButtonType; }
 
     _render() {
         let elem = super._render()
@@ -335,7 +340,7 @@ export class FilePicker extends InputWidget {
         this.onChange = onChange;
     }
 
-    type() { return FILE_PICK_TYPE; }
+    type() { return InputType.kFilePickType; }
 
     filter() { return 'image/*'; }
 
@@ -357,7 +362,7 @@ export class CheckBox extends InputWidget {
         this.onClick = onClick;
     }
 
-    type() { return CHECK_BOX_TYPE; }
+    type() { return InputType.kCheckboxType; }
 
     checked() {
         if (this.elem) {
@@ -450,42 +455,82 @@ export class Audio extends BoyiaWidget {
     }
 
     _render() {
-        let elem = document.createElement(AUDIO_TAG)
-        elem.setAttribute('preload', 'auto')
+        let elem = document.createElement(HtmlTags.kAudioTag);
+        elem.setAttribute('preload', 'auto');
         elem.oncanplay = function () {
             console.log('on audio prepared duration=' + elem.duration);
         }
-        elem.onplay = this.onplay
+        elem.onplay = this.onplay;
       
-        elem.onended = this.onended
-        elem.onprogress = this.onprogress
+        elem.onended = this.onended;
+        elem.onprogress = this.onprogress;
     
-        elem.ontimeupdate = this.ontimeupdate
-        elem.onerror = elem.onended
-        this.elem = elem
+        elem.ontimeupdate = this.ontimeupdate;
+        elem.onerror = elem.onended;
+        this.elem = elem;
         if (this.onready) {
-            this.onready(this)
+            this.onready(this);
         }
-        return elem
+        return elem;
+    }
+}
+
+export class Video extends BoyiaWidget {
+    constructor({width, height, onended, onprogress, ontimeupdate, onready}) { 
+        super({styleName: '', id: '', onready});
+        this.width = width;
+        this.height = height;
+        this.onended = onended;
+        this.onprogress = onprogress;
+        this.ontimeupdate = ontimeupdate;
+    }
+
+    setPlayUrl(url) {
+        if (this.elem) {
+            this.elem.src = url;
+        }
+    }
+
+    play() {
+        if (this.elem) {
+            this.elem.play();
+        }
+    }
+
+    pause() {
+        if (this.elem) {
+            this.elem.pause();
+        }
+    }
+
+    _render() {
+        let elem = document.createElement(HtmlTags.kVideoTag);
+        if (elem) {
+            elem.setAttribute('width', this.width);
+            elem.setAttribute('height', this.height);
+        }
+
+        this.elem = elem;
+        return elem;
     }
 }
 
 export class Label extends BoyiaWidget {
     constructor({forId, styleName}) { 
-        super({styleName: styleName, id: ''})
-        this.forId = forId
+        super({styleName: styleName, id: ''});
+        this.forId = forId;
     }
 
     _render() {
-        let elem = document.createElement(LABEL_TAG)
+        let elem = document.createElement(HtmlTags.kLabelTag);
         if (this.forId) {
-            elem.setAttribute('for', this.forId)
+            elem.setAttribute('for', this.forId);
         }
 
         if (this.styleName) {
-            elem.className = this.styleName
+            elem.className = this.styleName;
         }
-        return elem
+        return elem;
     }
 }
 
@@ -501,43 +546,43 @@ export class GestureDetector extends BoyiaStatelessWidget {
         child
     }) { 
         super({styleName: '', id: ''})
-        this.onTap = onTap
-        this.onHover = onHover
-        this.child = child
-        this.onTouchStart = onTouchStart
-        this.onTouchEnd = onTouchEnd
-        this.onMouseDown = onMouseDown
-        this.onMouseUp = onMouseUp
+        this.onTap = onTap;
+        this.onHover = onHover;
+        this.child = child;
+        this.onTouchStart = onTouchStart;
+        this.onTouchEnd = onTouchEnd;
+        this.onMouseDown = onMouseDown;
+        this.onMouseUp = onMouseUp;
     }
 
     build() {
-        return this.child
+        return this.child;
     }
 
     _render() {
         let elem = this.child.render();
         if (this.onTap) {
-            elem.onclick = this.onTap
+            elem.onclick = this.onTap;
         }
 
         if (this.onHover) {
-            elem.onmouseover = this.onHover
+            elem.onmouseover = this.onHover;
         }
 
         if (this.onMouseDown) {
-            elem.onmousedown = this.onMouseDown
+            elem.onmousedown = this.onMouseDown;
         }
 
         if (this.onMouseUp) {
-            elem.onmouseup = this.onMouseUp
+            elem.onmouseup = this.onMouseUp;
         }
 
         if (this.onTouchStart) {
-            elem.ontouchstart = this.onTouchStart
+            elem.ontouchstart = this.onTouchStart;
         }
 
         if (this.onTouchEnd) {
-            elem.ontouchend = this.onTouchEnd
+            elem.ontouchend = this.onTouchEnd;
         }
         return elem;
     }

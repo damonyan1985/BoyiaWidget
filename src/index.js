@@ -5,8 +5,6 @@ import {
     Text
 } from '../framework/core/core.js'
 
-import { SkinManager } from './player/skin-manager.js'
-
 var IndexRouter = {
     login: {
         path: '/boyiaweb/index/login',
