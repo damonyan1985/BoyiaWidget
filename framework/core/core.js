@@ -154,7 +154,7 @@ export class BoyiaStateWidget extends BoyiaWidget {
 export class Container extends BoyiaWidget {
     constructor({
         id = '',
-        styleName,
+        styleName = '',
         children = [],
         onready = undefined,
     }) { 
@@ -230,6 +230,37 @@ export class Container extends BoyiaWidget {
         }
 
         return null;
+    }
+
+    setScrollTop(top) {
+        if (!this.elem) {
+            return;
+        }
+
+        // If scroll on bottom
+        if (this.elem.scrollHeight <= this.elem.clientHeight + this.elem.scrollTop) {
+            return;
+        }
+
+        this.elem.scrollTop = this.elem.scrollTop + top;
+    }
+
+    scrollBy(top) {
+        if (!this.elem) {
+            return;
+        }
+        // If scroll on bottom
+        if (this.elem.scrollHeight <= this.elem.clientHeight + this.elem.scrollTop) {
+            return;
+        }
+
+        if (this.elem) {
+            this.elem.scrollBy({
+                left: 0,
+                top,
+                behavior: 'smooth'
+            });
+        }
     }
 
     isContainer() { return true }
@@ -745,30 +776,6 @@ export class EventHub {
     }
 }
 
-Array.prototype.indexOf = function(val) {
-    for (var i = 0; i < this.length; i++) {
-        if (this[i] == val)
-            return i
-    }
-    return -1
-}
-
-Array.prototype.remove = function(val) {
-    var index = this.indexOf(val)
-    if (index > -1) {
-        this.splice(index, 1)
-    }
-}
-
-String.format = function(format) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    return format.replace(/{(\d+)}/g, function(match, number) {
-        return typeof args[number] != 'undefined'
-            ? args[number]
-            : match
-    })
-}
-
 // BoyiaStateWidget才能setstate
 export class BoyiaVDOMDriver {
     constructor(oldWidget, newWidget) {
@@ -814,77 +821,85 @@ export class BoyiaVDOMDriver {
     }
 
     diff() {
-        BoyiaVDOMDriver.rebuild(this.newWidget)
-        let oldRoot = this.oldWidget.child
-        let newRoot = this.newWidget.child
+        BoyiaVDOMDriver.rebuild(this.newWidget);
+        let oldRoot = this.oldWidget.child;
+        let newRoot = this.newWidget.child;
         
-        this.diffImpl(oldRoot, newRoot, this.oldWidget)
+        this.diffImpl(oldRoot, newRoot, this.oldWidget);
+
+        if (this.newWidget.initProps) {
+            this.oldWidget.initProps = this.newWidget.initProps;
+        }
     }
 
     diffImpl(oldWidget, newWidget, parent) {
         // 不相等，完全替换
         try {
             if (oldWidget.className() != newWidget.className()) {
-                if (parent.isContainer()) {
-                    let index = parent.children.indexOf(oldWidget)
-                    parent.children[index] = newWidget
-                    if (parent.elem) {
-                        parent.elem.replaceChild(newWidget.render(), oldWidget.elem)
-                    }
-                } else if (parent.isComponent()) {
-                    parent.child = newWidget
-                    if (oldWidget.elem && oldWidget.elem.parentNode) {
-                        oldWidget.elem.parentNode.replaceChild(newWidget.render(), oldWidget.elem)
-                    }
-                }
-
-                oldWidget.disposeWidget()
-                return
+                this._replaceWidget(oldWidget, newWidget, parent);
+                return;
             }
         } catch(e) {
-            console.error('compare type', e)
+            console.error('compare type', e);
         }
 
         if (oldWidget.isContainer()) {
-            let children = newWidget.children
-            let oldChildren = oldWidget.children
-            let oldSize = oldChildren.length
+            let children = newWidget.children;
+            let oldChildren = oldWidget.children;
+            let oldSize = oldChildren.length;
 
             // 1，更新结点(update node)
             // 如果老数组长度大于新数组长度，删除dom元素
             if (children.length < oldChildren.length) {
                 for (let i = children.length; i < oldChildren.length; i++) {
-                    oldWidget.elem.removeChild(oldChildren[i].elem)
+                    oldWidget.elem.removeChild(oldChildren[i].elem);
                 }
-                oldChildren.splice(children.length, oldChildren.length - children.length)
+                oldChildren.splice(children.length, oldChildren.length - children.length);
             } else if (children.length > oldChildren.length) {
                 for (let i = oldChildren.length; i < children.length; i++) {
-                    oldWidget.elem.appendChild(children[i].render())
+                    oldWidget.elem.appendChild(children[i].render());
                 }
                 
-                oldChildren.push.apply(oldChildren, children.slice(oldChildren.length, children.length))
+                oldChildren.push.apply(oldChildren, children.slice(oldChildren.length, children.length));
             }
 
             // 2，更新节点属性(update props)
-            let size = children.length > oldSize ? oldSize : children.length
+            let size = children.length > oldSize ? oldSize : children.length;
             for (let i = 0; i < size; i++) {
-                this.diffImpl(oldChildren[i], children[i], oldWidget)
+                this.diffImpl(oldChildren[i], children[i], oldWidget);
             }
 
             try {
                 if (newWidget.styleName != oldWidget.styleName) {
-                    oldWidget.styleName = newWidget.styleName
-                    oldWidget.elem.className = newWidget.styleName
+                    oldWidget.styleName = newWidget.styleName;
+                    oldWidget.elem.className = newWidget.styleName;
                 }
             } catch(e) {
-                console.error('set class name error', e)
+                console.error('set class name error', e);
             }
 
         } else if (oldWidget.isComponent()) {
             let oldRoot = oldWidget.child
             let newRoot = newWidget.child
-            this.diffImpl(oldRoot, newRoot, oldWidget)
+            this.diffImpl(oldRoot, newRoot, oldWidget);
         }
+    }
+
+    _replaceWidget(oldWidget, newWidget, parent) {
+        if (parent.isContainer()) {
+            let index = parent.children.indexOf(oldWidget);
+            parent.children[index] = newWidget;
+            if (parent.elem) {
+                parent.elem.replaceChild(newWidget.render(), oldWidget.elem);
+            }
+        } else if (parent.isComponent()) {
+            parent.child = newWidget;
+            if (oldWidget.elem && oldWidget.elem.parentNode) {
+                oldWidget.elem.parentNode.replaceChild(newWidget.render(), oldWidget.elem);
+            }
+        }
+
+        oldWidget.disposeWidget();
     }
 }
 ////// core.js end //////////
