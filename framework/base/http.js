@@ -1,3 +1,8 @@
+/**
+ * Created by yanbo.boyia.
+ * Email 2512854007@qq.com
+ */
+
 // 下划线标注的成员表示对外不可用，主要是内部使用
 export class BoyiaHttp {
     static HttpMethod = {

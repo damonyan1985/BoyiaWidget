@@ -1,9 +1,11 @@
 /**
  * Created by yanbo on 2017/8/11.
+ * Email 2512854007@qq.com
  */
 ///// core.js begin
 // 容器主要使用div
 import {
+    Common,
     FeatureGatings
 } from '../base/util.js'
 
@@ -13,7 +15,8 @@ const HtmlTags = {
     kImageTag: 'img',
     kAudioTag: 'audio',
     kVideoTag: 'video',
-    kLabelTag: 'label'
+    kLabelTag: 'label',
+    kCanvasTag: 'canvas'
 };
 
 const InputType = {
@@ -108,15 +111,25 @@ export class BoyiaStateWidget extends BoyiaWidget {
 
     isComponent() { return true }
 
-    // 驱动刷新机制
+    // Async set state, 异步刷新机制
+    async setStateAsync(state, callback) {
+        await Common.asyncTaskPromise({
+            macroTask: () => {
+                this.setState(state);
+            }
+        });
+
+        if (callback) {
+            callback();
+        }
+    }
+
+    // Sync set state, 同步驱动刷新机制
     // 从父元素中移除自己，重新build之后再次添加
+    // Cannot override this method, 不可重写
     setState(state) {
         if (FeatureGatings.USE_STATE) {
             this.state = state
-            // let newWidget = Object.assign(new this.constructor({
-            //     styleName: this.styleName,
-            //     onready: this.onready
-            // }) , this)
             let newWidget = BoyiaVDOMDriver.deepCloneWidget(this)
             new BoyiaVDOMDriver(this, newWidget).diff()
         } else if (FeatureGatings.USE_STATE_UI_UPDATE) {
@@ -160,6 +173,22 @@ export class Container extends BoyiaWidget {
     }) { 
         super({styleName, id, onready});
         this.children = children;
+    }
+
+    width() {
+        if (this.elem) {
+            return this.elem.clientWidth;
+        }
+
+        return 0;
+    }
+
+    height() {
+        if (this.elem) {
+            return this.elem.clientHeight;
+        }
+
+        return 0;
     }
 
     setWidth(width) {
@@ -289,6 +318,7 @@ export class Container extends BoyiaWidget {
     }
 }
 
+// Image Widget show image label in page
 export class ImageWidget extends BoyiaWidget {
     constructor({styleName, url, id= '', onready = undefined}) { 
         super({styleName, id, onready});
@@ -618,6 +648,45 @@ export class GestureDetector extends BoyiaStatelessWidget {
         return elem;
     }
 }
+
+export class CanvasWidget extends BoyiaWidget {
+    constructor({width, height, onready = undefined}) { 
+        super({styleName: '', id: '', onready});
+        this.width = width;
+        this.height = height;
+    }
+
+    setCanvasSize(width, height) {
+        this.width = width;
+        this.height = height;
+        if (this.elem) {
+            this.elem.width = this.width;
+            this.elem.height = this.height;
+        }
+    }
+
+    imageData() {
+        if (this.context) {
+            return this.context.getImageData(0, 0, this.width, this.height);
+        }
+
+        return null;
+    }
+
+    putImageData(imageData, width, height) {
+        if (this.context) {
+            this.context.putImageData(imageData, width, height);
+        }
+    }
+
+    _render() {
+        let elem = document.createElement(HtmlTags.kCanvasTag);
+        elem.width = this.width;
+        elem.height = this.height;
+        this.context = elem.getContext('2d');
+        return elem;
+    }
+}
  
 // 导航
 export class BoyiaNavigator {
@@ -628,8 +697,8 @@ export class BoyiaNavigator {
         BoyiaNavigator._root = document.getElementById('root');
         // 处理导航返回
         window.onpopstate = function(e) {
-            console.log('onpopstate e = ', e.state)
-            BoyiaNavigator.pop()
+            console.log('onpopstate e = ', e.state);
+            BoyiaNavigator.pop();
         }
     }
 
@@ -641,7 +710,7 @@ export class BoyiaNavigator {
         // page为一个生成widget的函数
         let widget = page();
         if (!(widget instanceof BoyiaWidget)) {
-            return
+            return;
         }
 
         /// UI压栈
@@ -649,18 +718,18 @@ export class BoyiaNavigator {
             BoyiaNavigator._stack.push(widget);
             // 删除先有dom节点
             let node = BoyiaNavigator._root;
-            BoyiaNavigator._removeAll(BoyiaNavigator._root)
+            BoyiaNavigator._removeAll(BoyiaNavigator._root);
 
             node.appendChild(widget.render());
         }
 
         /// 修改路由
-        history.pushState({title, path}, title, path)
+        history.pushState({title, path}, title, path);
     }
 
     static _removeAll(node) {
         while(node.hasChildNodes()) {
-            node.removeChild(node.lastChild)
+            node.removeChild(node.lastChild);
         }
     }
 
@@ -680,7 +749,7 @@ export class BoyiaNavigator {
         let popWidgets = stack.splice(stack.length - 1, 1);
         if (popWidgets) {
             for (let i = 0; i < popWidgets.length; i++) {
-                popWidgets[i].disposeWidget()
+                popWidgets[i].disposeWidget();
             }
         }
 
@@ -771,8 +840,6 @@ export class EventHub {
         callbacks.forEach((callback) => {
             callback(data)
         })
-
-        //delete EventHub._events[key]
     }
 }
 
@@ -821,6 +888,8 @@ export class BoyiaVDOMDriver {
     }
 
     diff() {
+        // newWidget只是做build，不会render，因此可以用来做比较
+        // build过程不会触发initWidget，因此一些关键变量可以放在initWidget中
         BoyiaVDOMDriver.rebuild(this.newWidget);
         let oldRoot = this.oldWidget.child;
         let newRoot = this.newWidget.child;
@@ -882,6 +951,10 @@ export class BoyiaVDOMDriver {
             let oldRoot = oldWidget.child
             let newRoot = newWidget.child
             this.diffImpl(oldRoot, newRoot, oldWidget);
+
+            if (this.newWidget.initProps) {
+                this.oldWidget.initProps = this.newWidget.initProps;
+            }
         }
     }
 
