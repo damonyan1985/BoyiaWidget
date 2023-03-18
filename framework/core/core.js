@@ -855,20 +855,38 @@ export class BoyiaVDOMDriver {
         if (widget.isContainer()) {
             widget.children.forEach((child) => {
                 if (child.isComponent()) {
-                    BoyiaVDOMDriver.rebuild(child.rebuild())
+                    BoyiaVDOMDriver.rebuild(child.rebuild());
                 } else if (child.isContainer()) {
-                    BoyiaVDOMDriver.rebuild(child)
+                    BoyiaVDOMDriver.rebuild(child);
                 }
             })
         } else if (widget.isComponent()) {
-            BoyiaVDOMDriver.rebuild(widget.rebuild())
+            BoyiaVDOMDriver.rebuild(widget.rebuild());
         } else {
-            console.log('other type')
+            console.log('other type');
         }
     }
 
     static isBoyiaWidget(obj) {
-        return obj instanceof BoyiaWidget
+        return obj instanceof BoyiaWidget;
+    }
+
+    // Stateless, State, Container
+    static isChildWidget(key) {
+        return key === 'child';
+    }
+
+    static isChildren(key) {
+        return key === 'children';
+    }
+
+    static cloneWidgetChildren(children) {
+        let newChildren = [];
+        for (let i = 0; i < children.length; i++) {
+            newChildren.push(BoyiaVDOMDriver.deepCloneWidget(children[i]));
+        }
+
+        return newChildren;
     }
     
     static deepCloneWidget(obj) {
@@ -881,7 +899,16 @@ export class BoyiaVDOMDriver {
             onready: obj.onready
         })
         for (let key in obj) {
-            cloneObj[key] = BoyiaVDOMDriver.isBoyiaWidget(obj[key]) ? BoyiaVDOMDriver.deepCloneWidget(obj[key]) : obj[key]
+            //cloneObj[key] = BoyiaVDOMDriver.isBoyiaWidget(obj[key]) ? BoyiaVDOMDriver.deepCloneWidget(obj[key]) : obj[key];
+            // 除了child与children, 其他boyiawidget copy没有意义
+            if (BoyiaVDOMDriver.isChildWidget(key)) {
+                cloneObj[key] = BoyiaVDOMDriver.deepCloneWidget(obj[key]);
+            } else if (BoyiaVDOMDriver.isChildren(key)) {
+                cloneObj[key] = BoyiaVDOMDriver.cloneWidgetChildren(obj[key]);
+            } else if (!BoyiaVDOMDriver.isBoyiaWidget(obj[key])) {
+                // 非boyiawidget元素，资源使用浅拷贝
+                cloneObj[key] = obj[key];
+            }
         }
         
         return cloneObj
