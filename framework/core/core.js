@@ -1,30 +1,17 @@
 /**
  * Created by yanbo on 2017/8/11.
+ * Its small, simple and no need to compile by nodejs.
+ * BoyiaWidget can run anywhere.
  * Email 2512854007@qq.com
  */
 ///// core.js begin
 // 容器主要使用div
 import {
     Common,
-    FeatureGatings
+    FeatureGatings,
+    HtmlTags,
+    InputType
 } from '../base/util.js'
-
-const HtmlTags = {
-    kContainerTag: 'div',
-    kInputTag: 'input',
-    kImageTag: 'img',
-    kAudioTag: 'audio',
-    kVideoTag: 'video',
-    kLabelTag: 'label',
-    kCanvasTag: 'canvas'
-};
-
-const InputType = {
-    kTextFieldType: 'text',
-    kButtonType: 'button',
-    kFilePickType: 'file',
-    kCheckboxType: 'checkbox'
-};
  
 // 虚拟DOM结构中的元素
 export class BoyiaWidget {
@@ -55,7 +42,7 @@ export class BoyiaWidget {
     render() { 
         this.elem = this._render();
         if (this.onready && this.elem) {
-            //this.elem = elem
+            // dom构建完毕后，回调onready
             this.onready(this);
         }
 
@@ -68,8 +55,9 @@ export class BoyiaWidget {
     // 如果是复合组件，本身没有渲染功能，完全依靠子组件
     isComponent() { return false; }
 
-    className() {
-        return this.constructor.name;
+    classType() {
+        //return this.constructor.name;
+        return this.constructor;
     }
 }
 
@@ -130,7 +118,7 @@ export class BoyiaStateWidget extends BoyiaWidget {
     setState(state) {
         if (FeatureGatings.USE_STATE) {
             this.state = state
-            let newWidget = BoyiaVDOMDriver.deepCloneWidget(this)
+            let newWidget = BoyiaVDOMDriver.cloneWidget(this)
             new BoyiaVDOMDriver(this, newWidget).diff()
         } else if (FeatureGatings.USE_STATE_UI_UPDATE) {
             this.state = state
@@ -168,11 +156,16 @@ export class Container extends BoyiaWidget {
     constructor({
         id = '',
         styleName = '',
+        style = undefined,
         children = [],
         onready = undefined,
     }) { 
         super({styleName, id, onready});
+        if (!(children instanceof Array)) {
+            throw new Error('children is not a chilren');
+        }
         this.children = children;
+        this.style = style;
     }
 
     width() {
@@ -292,6 +285,24 @@ export class Container extends BoyiaWidget {
         }
     }
 
+    scrollTo(top) {
+        if (!this.elem) {
+            return;
+        }
+        // If scroll on bottom
+        if (this.elem.scrollHeight <= this.elem.clientHeight + this.elem.scrollTop) {
+            return;
+        }
+
+        if (this.elem) {
+            this.elem.scrollTo({
+                left: 0,
+                top,
+                behavior: 'smooth'
+            });
+        }
+    }
+
     isContainer() { return true }
 
     _render() {
@@ -301,6 +312,10 @@ export class Container extends BoyiaWidget {
         }
         if (this.styleName) {
             elem.className = this.styleName;
+        }
+
+        if (this.style) {
+            Common.objToStyle(elem, this.style);
         }
 
         // 添加子元素
@@ -343,14 +358,29 @@ export class ImageWidget extends BoyiaWidget {
 }
  
 export class InputWidget extends BoyiaWidget {
-    constructor({styleName, id= '', name='', value='', onready = undefined, onChange}) { 
+    constructor({styleName, 
+        id= '', 
+        name='', 
+        value='',
+        style,
+        onready = undefined, 
+        onChange
+    }) { 
         super({styleName, id, onready}) 
         this.name = name
         this.value = value
         this.onChange = onChange
+        this.style = style;
     }
 
     type() { return '' }
+
+    setValue(value) {
+        this.value = value;
+        if (this.elem) {
+            this.elem.value = value;
+        }
+    }
 
     _render() {
         let elem = document.createElement(HtmlTags.kInputTag)
@@ -366,16 +396,37 @@ export class InputWidget extends BoyiaWidget {
         if (this.styleName) {
             elem.className = this.styleName
         }
+
+        if (this.style) {
+            Common.objToStyle(elem, this.style);
+        }
         return elem;
     }
 }
  
 export class TextField extends InputWidget {
-    constructor({styleName, id= '', name='', value=''}) { 
-        super({styleName, id, name, value}) 
+    constructor({
+        styleName, 
+        style, 
+        id= '', 
+        name='', 
+        value='',
+        placeholder,
+        onready, 
+        onChange}) { 
+        super({styleName, style, id, name, value, onready, onChange});
+        this.placeholder = placeholder;
     }
 
     type() { return InputType.kTextFieldType; }
+
+    _render() {
+        let elem = super._render();
+        if (this.placeholder) {
+            elem.setAttribute('placeholder', this.placeholder);
+        }
+        return elem;
+    }
 }
  
 export class Button extends InputWidget {
@@ -387,17 +438,17 @@ export class Button extends InputWidget {
     type() { return InputType.kButtonType; }
 
     _render() {
-        let elem = super._render()
+        let elem = super._render();
         if (this.onTap) {
-            elem.onclick = this.onTap
+            elem.onclick = this.onTap;
         }
-        return elem
+        return elem;
     }
 }
 
 export class FilePicker extends InputWidget {
-    constructor({styleName, id= '', name='', value='', onChange}) { 
-        super({styleName, id, name, value});
+    constructor({styleName, id= '', name='', value='', style, onready, onChange}) { 
+        super({styleName, id, name, style, value, onready});
         this.onChange = onChange;
     }
 
@@ -418,14 +469,22 @@ export class FilePicker extends InputWidget {
 }
 
 export class CheckBox extends InputWidget {
-    constructor({styleName = '', id= '', name='', value='', onClick, onready = undefined}) { 
+    constructor({
+        styleName = '', 
+        id= '', 
+        name='', 
+        value='',
+        checked = false,
+        onClick, 
+        onready = undefined}) { 
         super({styleName, id, name, value, onready});
         this.onClick = onClick;
+        this.checked = checked;
     }
 
     type() { return InputType.kCheckboxType; }
 
-    checked() {
+    isChecked() {
         if (this.elem) {
             return this.elem.checked
         }
@@ -437,6 +496,10 @@ export class CheckBox extends InputWidget {
         let elem = super._render();
         if (this.onClick) {
             elem.onclick = this.onClick
+        }
+
+        if (this.checked) {
+            elem.checked = this.checked;
         }
 
         if (this.id) {
@@ -650,7 +713,7 @@ export class GestureDetector extends BoyiaStatelessWidget {
 }
 
 export class CanvasWidget extends BoyiaWidget {
-    constructor({width, height, onready = undefined}) { 
+    constructor({width = 0, height = 0, onready = undefined}) { 
         super({styleName: '', id: '', onready});
         this.width = width;
         this.height = height;
@@ -870,28 +933,10 @@ export class BoyiaVDOMDriver {
     static isBoyiaWidget(obj) {
         return obj instanceof BoyiaWidget;
     }
-
-    // Stateless, State, Container
-    static isChildWidget(key) {
-        return key === 'child';
-    }
-
-    static isChildren(key) {
-        return key === 'children';
-    }
-
-    static cloneWidgetChildren(children) {
-        let newChildren = [];
-        for (let i = 0; i < children.length; i++) {
-            newChildren.push(BoyiaVDOMDriver.deepCloneWidget(children[i]));
-        }
-
-        return newChildren;
-    }
     
-    static deepCloneWidget(obj) {
+    static cloneWidget(obj) {
         if (!BoyiaVDOMDriver.isBoyiaWidget(obj)) {
-            throw new Error('obj is not a boyia widget')
+            throw new Error('obj is not a boyia widget');
         }
         
         let cloneObj = new obj.constructor({
@@ -899,39 +944,28 @@ export class BoyiaVDOMDriver {
             onready: obj.onready
         })
         for (let key in obj) {
-            //cloneObj[key] = BoyiaVDOMDriver.isBoyiaWidget(obj[key]) ? BoyiaVDOMDriver.deepCloneWidget(obj[key]) : obj[key];
-            // 除了child与children, 其他boyiawidget copy没有意义
-            if (BoyiaVDOMDriver.isChildWidget(key)) {
-                cloneObj[key] = BoyiaVDOMDriver.deepCloneWidget(obj[key]);
-            } else if (BoyiaVDOMDriver.isChildren(key)) {
-                cloneObj[key] = BoyiaVDOMDriver.cloneWidgetChildren(obj[key]);
-            } else if (!BoyiaVDOMDriver.isBoyiaWidget(obj[key])) {
-                // 非boyiawidget元素，资源使用浅拷贝
-                cloneObj[key] = obj[key];
-            }
+            cloneObj[key] = obj[key];
         }
         
         return cloneObj
     }
 
     diff() {
+        if (this.oldWidget.initProps) {
+            this.newWidget.initProps = this.oldWidget.initProps;
+        }
         // newWidget只是做build，不会render，因此可以用来做比较
         // build过程不会触发initWidget，因此一些关键变量可以放在initWidget中
         BoyiaVDOMDriver.rebuild(this.newWidget);
         let oldRoot = this.oldWidget.child;
         let newRoot = this.newWidget.child;
-        
-        this.diffImpl(oldRoot, newRoot, this.oldWidget);
-
-        if (this.newWidget.initProps) {
-            this.oldWidget.initProps = this.newWidget.initProps;
-        }
+        this.diffImpl(oldRoot, newRoot, this.oldWidget);        
     }
 
     diffImpl(oldWidget, newWidget, parent) {
         // 不相等，完全替换
         try {
-            if (oldWidget.className() != newWidget.className()) {
+            if (oldWidget.classType() != newWidget.classType()) {
                 this._replaceWidget(oldWidget, newWidget, parent);
                 return;
             }
@@ -975,13 +1009,13 @@ export class BoyiaVDOMDriver {
             }
 
         } else if (oldWidget.isComponent()) {
+            if (this.oldWidget.initProps) {
+                this.newWidget.initProps = this.oldWidget.initProps;
+            }
+
             let oldRoot = oldWidget.child
             let newRoot = newWidget.child
             this.diffImpl(oldRoot, newRoot, oldWidget);
-
-            if (this.newWidget.initProps) {
-                this.oldWidget.initProps = this.newWidget.initProps;
-            }
         }
     }
 
