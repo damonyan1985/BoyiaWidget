@@ -54,6 +54,10 @@ export class BoyiaWidget {
     }
     // 如果是复合组件，本身没有渲染功能，完全依靠子组件
     isComponent() { return false; }
+    // 是否是文本
+    isText() { return false; }
+    // 是否是图片
+    isImage() { return false; }
 
     classType() {
         //return this.constructor.name;
@@ -190,11 +194,20 @@ export class Container extends BoyiaWidget {
         }
     }
 
-    setStyle(style) {
+    setStyleName(styleName) {
+        this.styleName = styleName;
         if (this.elem) {
-            this.elem.className = style;
+            this.elem.className = styleName;
         }
     }
+
+    setStyle(style) {
+        this.style = style;
+        if (this.elem) {
+            Common.objToStyle(this.elem, style);
+        }
+    }
+
 
     setCursor(cursor) {
         if (this.elem) {
@@ -355,6 +368,8 @@ export class ImageWidget extends BoyiaWidget {
         }
         return elem;
     }
+
+    isImage() { return true; }
 }
  
 export class InputWidget extends BoyiaWidget {
@@ -524,6 +539,8 @@ export class Text extends BoyiaWidget {
     _render() {
         return document.createTextNode(this.text)
     }
+
+    isText() { return true; }
 }
 
 export class Audio extends BoyiaWidget {
@@ -974,40 +991,7 @@ export class BoyiaVDOMDriver {
         }
 
         if (oldWidget.isContainer()) {
-            let children = newWidget.children;
-            let oldChildren = oldWidget.children;
-            let oldSize = oldChildren.length;
-
-            // 1，更新结点(update node)
-            // 如果老数组长度大于新数组长度，删除dom元素
-            if (children.length < oldChildren.length) {
-                for (let i = children.length; i < oldChildren.length; i++) {
-                    oldWidget.elem.removeChild(oldChildren[i].elem);
-                }
-                oldChildren.splice(children.length, oldChildren.length - children.length);
-            } else if (children.length > oldChildren.length) {
-                for (let i = oldChildren.length; i < children.length; i++) {
-                    oldWidget.elem.appendChild(children[i].render());
-                }
-                
-                oldChildren.push.apply(oldChildren, children.slice(oldChildren.length, children.length));
-            }
-
-            // 2，更新节点属性(update props)
-            let size = children.length > oldSize ? oldSize : children.length;
-            for (let i = 0; i < size; i++) {
-                this.diffImpl(oldChildren[i], children[i], oldWidget);
-            }
-
-            try {
-                if (newWidget.styleName != oldWidget.styleName) {
-                    oldWidget.styleName = newWidget.styleName;
-                    oldWidget.elem.className = newWidget.styleName;
-                }
-            } catch(e) {
-                console.error('set class name error', e);
-            }
-
+            this._diffContainer(oldWidget, newWidget);
         } else if (oldWidget.isComponent()) {
             if (this.oldWidget.initProps) {
                 this.newWidget.initProps = this.oldWidget.initProps;
@@ -1016,6 +1000,54 @@ export class BoyiaVDOMDriver {
             let oldRoot = oldWidget.child
             let newRoot = newWidget.child
             this.diffImpl(oldRoot, newRoot, oldWidget);
+        } else if (oldWidget.isText()) {
+            if (oldWidget.text != newWidget.text) {
+                oldWidget.setText(newWidget.text);
+            }
+        } else if (oldWidget.isImage()) {
+            if (newWidget.url && oldWidget.url != newWidget.url) {
+                oldWidget.setImageUrl(newWidget.url);
+            }
+        }
+    }
+
+    // Compare the container
+    _diffContainer(oldWidget, newWidget) {
+        let children = newWidget.children;
+        let oldChildren = oldWidget.children;
+        let oldSize = oldChildren.length;
+
+        // 1，更新结点(update node)
+        // 如果老数组长度大于新数组长度，删除dom元素
+        if (children.length < oldChildren.length) {
+            for (let i = children.length; i < oldChildren.length; i++) {
+                oldWidget.elem.removeChild(oldChildren[i].elem);
+            }
+            oldChildren.splice(children.length, oldChildren.length - children.length);
+        } else if (children.length > oldChildren.length) {
+            for (let i = oldChildren.length; i < children.length; i++) {
+                oldWidget.elem.appendChild(children[i].render());
+            }
+            
+            oldChildren.push.apply(oldChildren, children.slice(oldChildren.length, children.length));
+        }
+
+        // 2，更新节点属性(update props)
+        let size = children.length > oldSize ? oldSize : children.length;
+        for (let i = 0; i < size; i++) {
+            this.diffImpl(oldChildren[i], children[i], oldWidget);
+        }
+
+        try {
+            if (newWidget.styleName != oldWidget.styleName) {
+                oldWidget.setStyleName(newWidget.styleName);
+            }
+
+            if (newWidget.style != oldWidget.style) {
+                oldWidget.setStyle(newWidget.style);
+            }
+        } catch(e) {
+            console.error('set class name error', e);
         }
     }
 

@@ -63,6 +63,9 @@ export class Common {
   }
 
   static objToStyle(elem, widgetStyle) {
+    if (!widgetStyle) {
+      return;
+    }
     if (widgetStyle instanceof Object) {
       let style = elem['style'];
       for (let key in widgetStyle) {
