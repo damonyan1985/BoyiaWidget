@@ -30,7 +30,7 @@ export class Toast {
         let d = 0.5;
         await Common.asyncTaskPromise({
           macroTask: () => {
-            m.style.transition = '-webkit-transform ' + d + 's ease-in, opacity ' + d + 's ease-in';
+            m.style.transition = `transform ${d}s ease-in, opacity ${d}s ease-in`;
             m.style.opacity = '0';
           },
           duration: 1000
@@ -79,8 +79,15 @@ export class Common {
   static asyncTask({macroTask, duration = 0, completed, fail}) {
     let id = setTimeout(() => {
       try {
-        let result = macroTask();
+        
         window.clearTimeout(id);
+
+        if (!macroTask) {
+          completed('no macroTask');
+          return;
+        }
+
+        let result = macroTask();
         if (completed) {
           completed(result);
         }

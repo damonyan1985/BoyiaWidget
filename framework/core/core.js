@@ -5,7 +5,6 @@
  * Email 2512854007@qq.com
  */
 ///// core.js begin
-// 容器主要使用div
 import {
     Common,
     FeatureGatings,
@@ -13,7 +12,7 @@ import {
     InputType
 } from '../base/util.js'
  
-// 虚拟DOM结构中的元素
+// Virtyal DOM widget
 export class BoyiaWidget {
     constructor({styleName = '', id = '', onready = undefined}) {
         this.styleName = styleName;
@@ -52,11 +51,12 @@ export class BoyiaWidget {
     _render() {
         return this.isComponent() ? this.build().render() : null;
     }
-    // 如果是复合组件，本身没有渲染功能，完全依靠子组件
+
+    // If the widget is a component, which has no render node, its render function rely child.
     isComponent() { return false; }
-    // 是否是文本
+    // If the widget is a text
     isText() { return false; }
-    // 是否是图片
+    // If the widget is a image
     isImage() { return false; }
 
     classType() {
@@ -65,45 +65,45 @@ export class BoyiaWidget {
     }
 }
 
-// 无状态复合组件
+// Stateless widget can not set state 
 export class BoyiaStatelessWidget extends BoyiaWidget {
     constructor({styleName, id = '', onready = undefined}) {
-        super({styleName, id, onready})
+        super({styleName, id, onready});
     }
 
-    isComponent() { return true }
+    isComponent() { return true; }
 
     rebuild() {
-        this.child = this.build()
-        return this.child
+        this.child = this.build();
+        return this.child;
     }
 
-    // 首次渲染调用initWidget
+    // First render will call initWidget
+    // Second and more render will not call this method
     _render() {
         if (!this.child) {
-            this.initWidget()
-            this.child = this.build()
+            this.initWidget();
+            this.child = this.build();
         }
-        return this.child.render()
+        return this.child.render();
     }
 }
  
-// 有状态复合组件
+// The state widget
 export class BoyiaStateWidget extends BoyiaWidget {
     constructor({styleName, onready = undefined}) {
-        super({styleName, onready})
-        this.state = {}
-        //this.root = this.build()
+        super({styleName, onready});
+        this.state = {};
     }
 
     rebuild() {
-        this.child = this.build()
-        return this.child
+        this.child = this.build();
+        return this.child;
     }
 
-    isComponent() { return true }
+    isComponent() { return true; }
 
-    // Async set state, 异步刷新机制
+    // Async set state
     async setStateAsync(state, callback) {
         await Common.asyncTaskPromise({
             macroTask: () => {
@@ -116,9 +116,8 @@ export class BoyiaStateWidget extends BoyiaWidget {
         }
     }
 
-    // Sync set state, 同步驱动刷新机制
-    // 从父元素中移除自己，重新build之后再次添加
-    // Cannot override this method, 不可重写
+    // Sync set state
+    // Be careful, users cannot override this method
     setState(state) {
         if (FeatureGatings.USE_STATE) {
             this.state = state
@@ -141,6 +140,8 @@ export class BoyiaStateWidget extends BoyiaWidget {
         }
     }
 
+    // First render will call initWidget
+    // Second and more render will not call this method
     _render() {
         if (!this.child) {
             this.initWidget();
@@ -155,13 +156,14 @@ export class BoyiaStateWidget extends BoyiaWidget {
     }
 }
  
-// 容器
+// The container widget, which use div as a render container
 export class Container extends BoyiaWidget {
     constructor({
         id = '',
         styleName = '',
         style = undefined,
         children = [],
+        contenteditable = false,
         onready = undefined,
     }) { 
         super({styleName, id, onready});
@@ -170,6 +172,7 @@ export class Container extends BoyiaWidget {
         }
         this.children = children;
         this.style = style;
+        this.contenteditable = contenteditable;
     }
 
     width() {
@@ -205,6 +208,24 @@ export class Container extends BoyiaWidget {
         this.style = style;
         if (this.elem) {
             Common.objToStyle(this.elem, style);
+        }
+    }
+
+    getComputedStyle(name) {
+        if (this.elem) {
+            return window.getComputedStyle(this.elem)[name];
+        }
+    }
+
+    getStylePropValue(name) {
+        if (this.elem) {
+            return this.elem.style[name];
+        }
+    }
+
+    setStylePropValue(name, value) {
+        if (this.elem) {
+            this.elem.style[name] = value;
         }
     }
 
@@ -302,8 +323,10 @@ export class Container extends BoyiaWidget {
         if (!this.elem) {
             return;
         }
+
         // If scroll on bottom
-        if (this.elem.scrollHeight <= this.elem.clientHeight + this.elem.scrollTop) {
+        if (this.elem.scrollHeight <= this.elem.clientHeight + this.elem.scrollTop
+            && this.elem.scrollHeight <= this.elem.clientHeight + top) {
             return;
         }
 
@@ -316,6 +339,39 @@ export class Container extends BoyiaWidget {
         }
     }
 
+    positionContain(left, top) {
+        let {x, y} = this.getAbsolutePosition();
+        return (left > x 
+            && left < x + this.offsetWidth()
+            && top > y
+            && top < y + this.offsetHeight());
+    }
+
+    // Get absolute position
+    getAbsolutePosition() {
+        if (!this.elem) {
+            return {x: 0, y: 0};
+        }
+
+        let elem = this.elem;
+        // x pos
+        let actualLeft = elem.offsetLeft;
+        let current = elem.offsetParent;
+        while (current){
+            actualLeft += current.offsetLeft;
+            current = current.offsetParent;
+        }
+        // y pos
+        var actualTop = elem.offsetTop;
+        current = elem.offsetParent;
+        while (current) {
+            actualTop += (current.offsetTop + current.clientTop);
+            current = current.offsetParent;
+        }
+        // get x, y pos
+        return {x: actualLeft, y: actualTop}
+     }
+
     isContainer() { return true }
 
     _render() {
@@ -323,6 +379,11 @@ export class Container extends BoyiaWidget {
         if (this.id) {
             elem.setAttribute('id', this.id);
         }
+
+        if (this.contenteditable) {
+            elem.contenteditable = this.contenteditable;
+        }
+
         if (this.styleName) {
             elem.className = this.styleName;
         }
@@ -331,10 +392,10 @@ export class Container extends BoyiaWidget {
             Common.objToStyle(elem, this.style);
         }
 
-        // 添加子元素
+        // Add child render node to itself
         this.children.forEach((child) => {
             try {
-                // 子元素渲染
+                // call child render function to create a new render node.
                 elem.appendChild(child.render());
             } catch(e) {
                 console.error('appendChild err:', e)
@@ -348,9 +409,10 @@ export class Container extends BoyiaWidget {
 
 // Image Widget show image label in page
 export class ImageWidget extends BoyiaWidget {
-    constructor({styleName, url, id= '', onready = undefined}) { 
+    constructor({style, styleName, url, id= '', onready = undefined}) { 
         super({styleName, id, onready});
         this.url = url;
+        this.style = style;
     }
 
     setImageUrl(url) {
@@ -365,6 +427,10 @@ export class ImageWidget extends BoyiaWidget {
         elem.src = this.url;
         if (this.styleName) {
             elem.className = this.styleName;
+        }
+
+        if (this.style) {
+            Common.objToStyle(elem, this.style);
         }
         return elem;
     }
@@ -427,18 +493,38 @@ export class TextField extends InputWidget {
         name='', 
         value='',
         placeholder,
-        onready, 
+        onblur,
+        onready,
+        onClick, 
         onChange}) { 
         super({styleName, style, id, name, value, onready, onChange});
         this.placeholder = placeholder;
+        this.onblur = onblur;
+        this.onClick = onClick;
     }
 
     type() { return InputType.kTextFieldType; }
+
+    // Get focus of textfield
+    focus() {
+        if (this.elem) {
+            this.elem.focus();
+        }
+    }
 
     _render() {
         let elem = super._render();
         if (this.placeholder) {
             elem.setAttribute('placeholder', this.placeholder);
+        }
+
+        // lost focus callback 
+        if (this.onblur) {
+            elem.onblur = this.onblur;
+        }
+
+        if (this.onClick) {
+            elem.onclick = this.onClick;
         }
         return elem;
     }
@@ -684,6 +770,11 @@ export class GestureDetector extends BoyiaStatelessWidget {
         onTouchEnd = undefined,
         onMouseDown = undefined,
         onMouseUp = undefined, 
+        onContextMenu = undefined,
+        onDragStart = undefined, // 开始拖动
+        onDragOver = undefined, // 当被拖动元素在另一对象容器范围内拖动时
+        onDragEnd = undefined, // 拖动结束
+        onDrag = undefined, // 当元素正在被拖动时触发
         child
     }) { 
         super({styleName: '', id: ''})
@@ -694,6 +785,11 @@ export class GestureDetector extends BoyiaStatelessWidget {
         this.onTouchEnd = onTouchEnd;
         this.onMouseDown = onMouseDown;
         this.onMouseUp = onMouseUp;
+        this.onContextMenu = onContextMenu;
+        this.onDragStart = onDragStart;
+        this.onDragOver = onDragOver;
+        this.onDragEnd = onDragEnd;
+        this.onDrag = onDrag;
     }
 
     build() {
@@ -725,6 +821,27 @@ export class GestureDetector extends BoyiaStatelessWidget {
         if (this.onTouchEnd) {
             elem.ontouchend = this.onTouchEnd;
         }
+
+        if (this.onContextMenu) {
+            elem.oncontextmenu = this.onContextMenu;
+        }
+
+        if (this.onDrag) {
+            elem.ondrag = this.onDrag;
+        }
+
+        if (this.onDragStart) {
+            elem.ondragstart = this.onDragStart;
+        }
+
+        if (this.onDragEnd) {
+            elem.ondragend = this.onDragEnd;
+        }
+
+        if (this.onDragOver) {
+            elem.ondragover = this.onDragOver;
+        }
+
         return elem;
     }
 }
@@ -930,18 +1047,25 @@ export class BoyiaVDOMDriver {
         this.newWidget = newWidget
     }
 
-    // 遍历子元素中的component，全部build一遍
-    static rebuild(widget) {
+    static _rebuildComponent(widget, old) {
+        if (old) {
+            widget.initProps = old.initProps;
+        }
+
+        BoyiaVDOMDriver.rebuild(widget.rebuild(), old ? old.child : null);
+    }
+
+    // recur component widget build method
+    static rebuild(widget, old) {
+        let isSame = old && old.classType() == widget.classType();
         if (widget.isContainer()) {
-            widget.children.forEach((child) => {
-                if (child.isComponent()) {
-                    BoyiaVDOMDriver.rebuild(child.rebuild());
-                } else if (child.isContainer()) {
-                    BoyiaVDOMDriver.rebuild(child);
-                }
+            // If the widget is container, rebuild the
+            widget.children.forEach((child, index) => {
+                let oldChild = isSame ? old.children[index] : null;
+                BoyiaVDOMDriver.rebuild(child, oldChild);
             })
         } else if (widget.isComponent()) {
-            BoyiaVDOMDriver.rebuild(widget.rebuild());
+            BoyiaVDOMDriver._rebuildComponent(widget, isSame ? old : null);
         } else {
             console.log('other type');
         }
@@ -951,6 +1075,7 @@ export class BoyiaVDOMDriver {
         return obj instanceof BoyiaWidget;
     }
     
+    // Clone widget only shallow
     static cloneWidget(obj) {
         if (!BoyiaVDOMDriver.isBoyiaWidget(obj)) {
             throw new Error('obj is not a boyia widget');
@@ -959,28 +1084,25 @@ export class BoyiaVDOMDriver {
         let cloneObj = new obj.constructor({
             styleName: obj.styleName,
             onready: obj.onready
-        })
+        });
         for (let key in obj) {
             cloneObj[key] = obj[key];
         }
         
-        return cloneObj
+        return cloneObj;
     }
 
     diff() {
-        if (this.oldWidget.initProps) {
-            this.newWidget.initProps = this.oldWidget.initProps;
-        }
-        // newWidget只是做build，不会render，因此可以用来做比较
-        // build过程不会触发initWidget，因此一些关键变量可以放在initWidget中
-        BoyiaVDOMDriver.rebuild(this.newWidget);
+        // newWidget only build，and will not call render, just compare with old and new.
+        // build will not call initWidget，so you can add crucial variable in initWidget method.
+        BoyiaVDOMDriver.rebuild(this.newWidget, this.oldWidget);
         let oldRoot = this.oldWidget.child;
         let newRoot = this.newWidget.child;
         this.diffImpl(oldRoot, newRoot, this.oldWidget);        
     }
 
     diffImpl(oldWidget, newWidget, parent) {
-        // 不相等，完全替换
+        // If class type is not the same, replace the widget to the old parent
         try {
             if (oldWidget.classType() != newWidget.classType()) {
                 this._replaceWidget(oldWidget, newWidget, parent);
@@ -993,10 +1115,6 @@ export class BoyiaVDOMDriver {
         if (oldWidget.isContainer()) {
             this._diffContainer(oldWidget, newWidget);
         } else if (oldWidget.isComponent()) {
-            if (this.oldWidget.initProps) {
-                this.newWidget.initProps = this.oldWidget.initProps;
-            }
-
             let oldRoot = oldWidget.child
             let newRoot = newWidget.child
             this.diffImpl(oldRoot, newRoot, oldWidget);
@@ -1017,14 +1135,15 @@ export class BoyiaVDOMDriver {
         let oldChildren = oldWidget.children;
         let oldSize = oldChildren.length;
 
-        // 1，更新结点(update node)
-        // 如果老数组长度大于新数组长度，删除dom元素
+        // 1, Update node
+        // If the old children length large than new children, delete the widget element from old children
         if (children.length < oldChildren.length) {
             for (let i = children.length; i < oldChildren.length; i++) {
                 oldWidget.elem.removeChild(oldChildren[i].elem);
             }
             oldChildren.splice(children.length, oldChildren.length - children.length);
         } else if (children.length > oldChildren.length) {
+            // If the old children length less than new children, add the widget element to old children
             for (let i = oldChildren.length; i < children.length; i++) {
                 oldWidget.elem.appendChild(children[i].render());
             }
@@ -1032,7 +1151,7 @@ export class BoyiaVDOMDriver {
             oldChildren.push.apply(oldChildren, children.slice(oldChildren.length, children.length));
         }
 
-        // 2，更新节点属性(update props)
+        // 2, Update the properties of widget
         let size = children.length > oldSize ? oldSize : children.length;
         for (let i = 0; i < size; i++) {
             this.diffImpl(oldChildren[i], children[i], oldWidget);
@@ -1040,7 +1159,7 @@ export class BoyiaVDOMDriver {
 
         try {
             if (newWidget.styleName != oldWidget.styleName) {
-                oldWidget.setStyleName(newWidget.styleName);
+                oldWidget.setStyleName(newWidget.styleName ?? '');
             }
 
             if (newWidget.style != oldWidget.style) {
@@ -1051,7 +1170,33 @@ export class BoyiaVDOMDriver {
         }
     }
 
+    static _resetContainerInit(widget) {
+        widget.children.forEach((item) => {
+            if (item.isComponent()) {
+                BoyiaVDOMDriver._resetInitWidget(item);
+            } else if (item.isContainer()) {
+                BoyiaVDOMDriver._resetContainerInit(item);
+            }
+        });
+    }
+
+    // The method _resetInitWidget arguments must be component widget
+    static _resetInitWidget(widget) {
+        widget.initWidget();
+        let child = widget.child;
+        if (child.isContainer()) {
+            BoyiaVDOMDriver._resetContainerInit(child);
+        } else if (child.isComponent()) {
+            BoyiaVDOMDriver._resetInitWidget(child);
+        }
+    }
+
     _replaceWidget(oldWidget, newWidget, parent) {
+        // If the widget is component, must recursion call initWidget
+        if (newWidget && newWidget.isComponent()) {
+            BoyiaVDOMDriver._resetInitWidget(newWidget);
+        }
+
         if (parent.isContainer()) {
             let index = parent.children.indexOf(oldWidget);
             parent.children[index] = newWidget;

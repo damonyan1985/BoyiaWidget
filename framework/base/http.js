@@ -63,7 +63,7 @@ export class BoyiaHttp {
         if (responseType == 'blob') {
           if (onLoad) {
             xhr.onload = (e) => {
-              if (xhr.status == 200) {
+              if (xhr.status == 200 || xhr.status == 206) {
                 onLoad(e, xhr)
               }
             };
@@ -146,7 +146,7 @@ export class BoyiaHttp {
     }
 
     // 下载文件
-    static download({url, headers = {}}) {
+    static download({url, name, headers = {}}) {
       BoyiaHttp.fetch({
         url,
         headers,
@@ -156,7 +156,7 @@ export class BoyiaHttp {
           const blob = new Blob([xhr.response], { type: "application/octet-stream" })
           const contentDisposition = xhr.getResponseHeader("Content-Disposition")
           let link = document.createElement("a")
-          let fileName = "unknow"
+          let fileName = name ?? "unknow"
           if (contentDisposition) {
               const descArrays = contentDisposition.split("=")
               fileName = decodeURI(descArrays[1])
