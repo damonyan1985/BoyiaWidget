@@ -1134,6 +1134,11 @@ export class BoyiaVDOMDriver {
         }
     }
 
+    static isFoundationType(value) {
+        return typeof value === 'string'
+            || typeof value === 'number';
+    }
+
     static isBoyiaWidget(obj) {
         return obj instanceof BoyiaWidget;
     }
@@ -1162,6 +1167,7 @@ export class BoyiaVDOMDriver {
         let oldRoot = this.oldWidget.child;
         let newRoot = this.newWidget.child;
         this.diffImpl(oldRoot, newRoot, this.oldWidget);
+
     }
 
     diffImpl(oldWidget, newWidget, parent) {
@@ -1178,6 +1184,11 @@ export class BoyiaVDOMDriver {
         if (oldWidget.isContainer()) {
             this._diffContainer(oldWidget, newWidget);
         } else if (oldWidget.isComponent()) {
+            for (let key in newWidget) {
+                if (BoyiaVDOMDriver.isFoundationType(newWidget[key])) {
+                    oldWidget[key] = newWidget[key];
+                }
+            }
             let oldRoot = oldWidget.child
             let newRoot = newWidget.child
             this.diffImpl(oldRoot, newRoot, oldWidget);
