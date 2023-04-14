@@ -172,4 +172,17 @@ export class BoyiaHttp {
         }
       })
     }
+
+    static getQuery = (url) => {
+      const queryPath = url.substr(url.indexOf('?') + 1);
+      const queryArray = queryPath.split('&') || [];
+      const queryObj = {};
+      
+      for (let i = 0; i < queryArray.length; i++) {
+        const pair = queryArray[i].split('=');
+        queryObj[pair[0]] = pair[1];
+      }
+
+      return queryObj;
+    }
 }

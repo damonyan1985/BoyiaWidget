@@ -120,9 +120,9 @@ export class BoyiaStateWidget extends BoyiaWidget {
     // Be careful, users cannot override this method
     setState(state) {
         if (FeatureGatings.USE_STATE) {
-            this.state = state
-            let newWidget = BoyiaVDOMDriver.cloneWidget(this)
-            new BoyiaVDOMDriver(this, newWidget).diff()
+            this.state = state;
+            let newWidget = BoyiaVDOMDriver.cloneWidget(this);
+            new BoyiaVDOMDriver(this, newWidget).diff();
         } else if (FeatureGatings.USE_STATE_UI_UPDATE) {
             this.state = state
             let parent;
@@ -712,6 +712,55 @@ export class Video extends BoyiaWidget {
         this.ontimeupdate = ontimeupdate;
     }
 
+    seekTo(progress) {
+        if (this.elem) {
+            this.elem.currentTime = progress * this.elem.duration;
+        }
+    }
+
+    getBuffer() {
+        if (this.elem && this.elem.buffered) {
+            let duration = this.elem.duration;
+            if (!duration) { return 0; }
+
+            let length = this.elem.buffered.length;
+            for (let i = length - 1; i >= 0; i--) {
+                if (this.elem.buffered.start(i) < this.elem.currentTime) {
+                    let bufferedLength = ((this.elem.buffered.end(i) / duration) * 100).toFixed(2) + '%';
+                    return bufferedLength;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    currentTime() {
+        return this.elem && this.elem.currentTime;
+    }
+
+    duration() {
+        return this.elem && this.elem.duration;
+    }
+
+    hasUrl() {
+        return this.elem && this.elem.src;
+    }
+
+    setVolume(volume) {
+        if (this.elem) {
+            this.elem.volume = volume;
+        }
+    }
+
+    isPlaying() {
+        if (this.elem) {
+            return !this.elem.paused;
+        }
+
+        return false;
+    }
+
     setPlayUrl(url) {
         if (this.elem) {
             this.elem.src = url;
@@ -735,6 +784,14 @@ export class Video extends BoyiaWidget {
         if (elem) {
             elem.setAttribute('width', this.width);
             elem.setAttribute('height', this.height);
+        }
+
+        if (this.onprogress) {
+            elem.onprogress = this.onprogress;
+        }
+    
+        if (this.ontimeupdate) {
+            elem.ontimeupdate = this.ontimeupdate;
         }
 
         this.elem = elem;
@@ -991,79 +1048,85 @@ export class BoyiaNavigator {
 }
 
 export class EventHub {
-    static _events = {}
+    static _events = {};
     static addEvent(key, callback) {
         if (!key || !callback) {
-            return
+            return;
         }
 
-        let callbacks = EventHub._events[key]
+        let callbacks = EventHub._events[key];
         if (!callbacks) {
-            callbacks = []
-            EventHub._events[key] = callbacks
+            callbacks = [];
+            EventHub._events[key] = callbacks;
         }
 
-        callbacks.push(callback)
+        callbacks.push(callback);
     }
 
     static removeAll() {
-        _events = {}
+        _events = {};
     }
 
     static removeEvent(key, callback) {
         if (!key || !callback) {
-            return
+            return;
         }
 
-        let callbacks = EventHub._events[key]
+        let callbacks = EventHub._events[key];
         if (!callbacks || callbacks.length == 0) {
-            return
+            return;
         }
 
         for (let i = 0; i < callbacks.length; i++) {
             if (callbacks[i] == callback) {
-                callbacks.splice(i, 1)
-                break
+                callbacks.splice(i, 1);
+                break;
             }
         }
     }
 
     static sendEvent(key, data) {
-        let callbacks = EventHub._events[key]
+        let callbacks = EventHub._events[key];
         if (!callbacks || !(callbacks instanceof Array)) {
-            return
+            return;
         }
 
         callbacks.forEach((callback) => {
-            callback(data)
+            callback(data);
         })
     }
 }
 
-// BoyiaStateWidget才能setstate
+// Only BoyiaStateWidget can invoke setstate
 export class BoyiaVDOMDriver {
     constructor(oldWidget, newWidget) {
-        this.oldWidget = oldWidget
-        this.newWidget = newWidget
+        this.oldWidget = oldWidget;
+        this.newWidget = newWidget;
     }
 
     static _rebuildComponent(widget, old) {
         if (old) {
+            // If has old, reuse the old props for diff
             widget.initProps = old.initProps;
+        } else {
+            // If has not old, the widget is new create
+            // now need to call initWidget() to init the props
+            widget.initWidget();
         }
 
         BoyiaVDOMDriver.rebuild(widget.rebuild(), old ? old.child : null);
     }
 
-    // recur component widget build method
+    // Recur component widget build method.
     static rebuild(widget, old) {
         let isSame = old && old.classType() == widget.classType();
         if (widget.isContainer()) {
-            // If the widget is container, rebuild the
+            // If the widget is container, rebuild its child.
             widget.children.forEach((child, index) => {
+                // Not the same type will be replaced, so get null.
                 let oldChild = isSame ? old.children[index] : null;
                 BoyiaVDOMDriver.rebuild(child, oldChild);
-            })
+            });
         } else if (widget.isComponent()) {
             BoyiaVDOMDriver._rebuildComponent(widget, isSame ? old : null);
         } else {
@@ -1098,7 +1161,7 @@ export class BoyiaVDOMDriver {
         BoyiaVDOMDriver.rebuild(this.newWidget, this.oldWidget);
         let oldRoot = this.oldWidget.child;
         let newRoot = this.newWidget.child;
-        this.diffImpl(oldRoot, newRoot, this.oldWidget);        
+        this.diffImpl(oldRoot, newRoot, this.oldWidget);
     }
 
     diffImpl(oldWidget, newWidget, parent) {
@@ -1170,33 +1233,7 @@ export class BoyiaVDOMDriver {
         }
     }
 
-    static _resetContainerInit(widget) {
-        widget.children.forEach((item) => {
-            if (item.isComponent()) {
-                BoyiaVDOMDriver._resetInitWidget(item);
-            } else if (item.isContainer()) {
-                BoyiaVDOMDriver._resetContainerInit(item);
-            }
-        });
-    }
-
-    // The method _resetInitWidget arguments must be component widget
-    static _resetInitWidget(widget) {
-        widget.initWidget();
-        let child = widget.child;
-        if (child.isContainer()) {
-            BoyiaVDOMDriver._resetContainerInit(child);
-        } else if (child.isComponent()) {
-            BoyiaVDOMDriver._resetInitWidget(child);
-        }
-    }
-
     _replaceWidget(oldWidget, newWidget, parent) {
-        // If the widget is component, must recursion call initWidget
-        if (newWidget && newWidget.isComponent()) {
-            BoyiaVDOMDriver._resetInitWidget(newWidget);
-        }
-
         if (parent.isContainer()) {
             let index = parent.children.indexOf(oldWidget);
             parent.children[index] = newWidget;
@@ -1206,7 +1243,10 @@ export class BoyiaVDOMDriver {
         } else if (parent.isComponent()) {
             parent.child = newWidget;
             if (oldWidget.elem && oldWidget.elem.parentNode) {
-                oldWidget.elem.parentNode.replaceChild(newWidget.render(), oldWidget.elem);
+                let elem = newWidget.render();
+                oldWidget.elem.parentNode.replaceChild(elem, oldWidget.elem);
+                // Reset the parent elem
+                parent.elem = elem;
             }
         }
 

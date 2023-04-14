@@ -9,7 +9,11 @@ export const HtmlTags = {
   kAudioTag: 'audio',
   kVideoTag: 'video',
   kLabelTag: 'label',
-  kCanvasTag: 'canvas'
+  kCanvasTag: 'canvas',
+  kHeadTag: 'head',
+  kScriptTag: 'script',
+  kBodyTag: 'body',
+  kIframe: 'iframe'
 };
 
 export const InputType = {
@@ -19,7 +23,7 @@ export const InputType = {
   kCheckboxType: 'checkbox'
 };
 
-export const kPixelUnit = 'rem'; 
+export const kPixelUnit = 'rem';
 
 export class Toast {
     static async show({msg = ''}) {
@@ -46,9 +50,7 @@ export class Toast {
 }
 
 export class Common {
-  static getUrlParams() {
-    //window.location.
-  }
+  static jsonpCallbackId = 1;
 
   static timeFormat = (time) => {
     let tempMin = parseInt(time / 60);
@@ -79,7 +81,6 @@ export class Common {
   static asyncTask({macroTask, duration = 0, completed, fail}) {
     let id = setTimeout(() => {
       try {
-        
         window.clearTimeout(id);
 
         if (!macroTask) {
@@ -98,6 +99,7 @@ export class Common {
         }
       }
     }, duration);
+    return id;
   }
 
   // 使用promise封装异步任务
@@ -135,7 +137,93 @@ export class Common {
     }
 
     return result;
-  }  
+  }
+
+  // When you want to get the callback from jsonp, you must invoke this funtion first.
+  static initJsonpMsg() {
+    window.addEventListener('message', (msg) => {
+      console.log('initJsonpMsg msg = ' + JSON.stringify(msg.data));
+      let data = msg.data;
+      if (data && data['callback']) {
+        let jsonpCallbackKey = `boyia_jsonp_${data['callback']}`;
+        window[jsonpCallbackKey] && window[jsonpCallbackKey](data['data']);
+      }
+    });
+  }
+
+  // Use a iframe as a proxy to request cross origin data
+  // The proxy html just like https://damonyan1985.github.io/js/jsonp/jsonp.html
+  // You can download this html in your website for a proxy, and use jsonp static method to request data.
+  /**
+   * Common.initJsonpMsg();
+   * Common.jsonp(
+      'https://damonyan1985.github.io/js/jsonp/jsonp.html', 
+      'https://damonyan1985.github.io/lyrics/joker.lrc',
+      (result) => {
+          console.log('json result = ' + result.data);
+      });
+   * @param {*} url 
+   * @param {*} proxyUrl 
+   * @param {*} callback 
+   */
+  static jsonp(url, proxyUrl, responseType, callback) {
+    let body = document.querySelector(HtmlTags.kBodyTag);
+    let iframe = document.createElement(HtmlTags.kIframe);
+    iframe.style.display = 'none';
+
+    let callbackName = `cb_${Common.jsonpCallbackId++}`;
+    iframe.src = `${url}?callback=${callbackName}&proxyUrl=${encodeURIComponent(proxyUrl)}&responseType=${responseType ?? 'json'}`;
+
+    console.log('jsonp iframe.src=' + iframe.src);
+
+    let jsonpCallbackKey = `boyia_jsonp_${callbackName}`;
+    window[jsonpCallbackKey] = (result) => {
+      callback && callback(result);
+      delete window[jsonpCallbackKey];
+      // try {
+      //   iframe.contentWindow.document.write('');
+      //   iframe.contentWindow.document.clear('');
+      // } catch(e) {
+      //   console.error(e);
+      // }
+
+      body.removeChild(iframe);
+    };
+    body.appendChild(iframe);
+  }
+
+  static jsonpPromise(url, proxyUrl, responseType) {
+    return new Promise((resolve, reject) => {
+      Common.jsonp(url, proxyUrl, responseType, (result) => {
+        if (result && result.status == 'ok') {
+          resolve(result);
+        } else {
+          reject(result);
+        }
+      })
+    });
+  }
+
+  static getProxyServerUrl() {
+    return 'https://damonyan1985.github.io/js/jsonp/jsonp.html';
+  }
+
+  static getProxyUrl(url) {
+    return `https://damonyan1985.github.io${url}`;
+  }
+
+  static isLocalUrl() {
+    return window.location.protocol === 'file:';
+  }
+
+  // 是否是移动端
+  static isMobile() {
+    if (/Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+      return true;
+    }
+
+    return false;
+  }
 }
 
 Array.prototype.indexOf = function(val) {
